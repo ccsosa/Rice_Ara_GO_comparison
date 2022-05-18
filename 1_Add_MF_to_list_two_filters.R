@@ -12,7 +12,7 @@ require(gprofiler2)
 require(GOCompare)
 require(GOfuncR)
 require(agricolae)
-#require(GO.db)
+require(GO.db)
 #require(GOSim)
 require(dplyr)
 require(stringr)
@@ -200,37 +200,64 @@ go_ids <- go_ids[,c(1,2)]
 message("unique OSJ genes: ",length(unique(dat3_Sat$ci_gen)) )
 message("unique ARATH genes: ",length(unique(x_orth_sat2$ortholog_ensg)) )
 ############################################################################################
+
+x_s <-  gprofiler2::gost(query = unique(dat3_Sat$ci_gen),
+                         organism = "osativa", ordered_query = FALSE,
+                         multi_query = FALSE, significant = TRUE, exclude_iea = FALSE,
+                         measure_underrepresentation = FALSE, evcodes = T,
+                         user_threshold = 0.01, correction_method = "g_SCS",
+                         #domain_scope = "annotated",
+                         custom_bg = NULL,#unique(dat3_Sat$ci_gen),
+                         numeric_ns = "", sources = "GO:BP", as_short_link = FALSE)
+
+write.table(as.data.frame(x_s$result[,-c(14)]),paste0(dir,"/MF/TopGO_2_filters/","gprofiler_results.tsv"),na = "",sep="\t",row.names = F,quote = F)
+  #x_s$result[,c(1:13)]),paste0(dir,"/MF/TopGO_2_filters/","gprofiler_results.tsv"),na = "",sep="\t",row.names = F,quote = F)
+
+############################################################################################
 #preparing data for elim algorithm
-gene_2_GO <- unstack(go_ids[,c(1,2)])
-keep  <- unique(dat3_Sat$ci_gen)  %in% go_ids[,2]#unlist(dat3_Sat$ci_gen) %in% go_ids[,2]
-keep  <- which(keep==TRUE)
-candidate_list <- unique(dat3_Sat$ci_gen)[keep] #unlist(dat3_Sat$ci_gen)[keep]
-geneList <- factor(as.integer(unique(dat3_Sat$ci_gen) %in% candidate_list),levels = c(0,1))
-#geneList=factor(as.integer(unlist(dat3_Sat$ci_gen) %in% candidate_list),levels = c(0,1))
-names(geneList)= unique(dat3_Sat$ci_gen)  #unlist(dat3_Sat$ci_gen)
-summary(geneList)
-#Create topGOdata object
-GOdata=new('topGOdata', ontology='BP', allGenes = geneList, annot = topGO::annFUN.gene2GO,description="OSJ_BP groups",
-           gene2GO = gene_2_GO)
-#https://ucdavis-bioinformatics-training.github.io/2019_August_UCD_mRNAseq_Workshop/differential_expression/enrichment
-resultKS.elim <- runTest(GOdata, algorithm = "elim", statistic = "ks")#, cutOff=0.05)
-sum(resultKS.elim@score <0.05)
-#https://ucdavis-bioinformatics-training.github.io/2019_August_UCD_mRNAseq_Workshop/differential_expression/enrichment
-showSigOfNodes(GOdata, score(resultKS.elim), firstSigNodes =27, useInfo = "def")
+# gene_2_GO <- unstack(go_ids[,c(1,2)])
+# keep  <- unique(dat3_Sat$ci_gen)  %in% go_ids[,2]#unlist(dat3_Sat$ci_gen) %in% go_ids[,2]
+# keep  <- which(keep==TRUE)
+# candidate_list <- unique(dat3_Sat$ci_gen)[keep] #unlist(dat3_Sat$ci_gen)[keep]
+# geneList <- factor(as.integer(unique(dat3_Sat$ci_gen) %in% candidate_list),levels = c(0,1))
+# #geneList=factor(as.integer(unlist(dat3_Sat$ci_gen) %in% candidate_list),levels = c(0,1))
+# names(geneList)= unique(dat3_Sat$ci_gen)  #unlist(dat3_Sat$ci_gen)
+# summary(geneList)
+# #Create topGOdata object
+# GOdata=new('topGOdata', ontology='BP', allGenes = geneList, annot = topGO::annFUN.gene2GO,description="OSJ_BP groups",
+#            gene2GO = gene_2_GO)
+# #https://ucdavis-bioinformatics-training.github.io/2019_August_UCD_mRNAseq_Workshop/differential_expression/enrichment
+# #resultKS.elim <- runTest(GOdata, algorithm = "elim", statistic = "ks")#, cutOff=0.05)
+# resultKS.elim <- runTest(GOdata, algorithm = "elim", statistic = "ks")#, cutOff=0.05)
+# #pks <- data.frame(p.adjust(resultKS.elim@score,method = "fdr"))
+# sum(resultKS.elim@score <0.05)
+#
+#
+# #https://ucdavis-bioinformatics-training.github.io/2019_August_UCD_mRNAseq_Workshop/differential_expression/enrichment
+# #showSigOfNodes(GOdata, score(resultKS.elim), firstSigNodes =27, useInfo = "def")
+#
+# tab <- GenTable(GOdata, raw.p.value = resultKS.elim, topNodes = length(resultKS.elim@score), numChar = 180)
+# tab$p_adj <- p.adjust(tab$raw.p.value,method = "fdr")
+# write.table(tab[,c(1,6)][which(tab$raw.p.value<0.05),],paste0(dir,"/MF/TopGO_2_filters/","tab_go_bp.tsv"),na = "",sep="\t",row.names = F,quote = F)
+# write.table(tab,paste0(dir,"/MF/TopGO_2_filters/","tab_go_bp_all.tsv"),na = "",sep="\t",row.names = F,quote = F)
+#
+#
+# # tab$FDR <- p.adjust(tab$raw.p.value,method = "fdr")
+# # par(cex = 0.3)
+# # showSigOfNodes(GOdata, score(resultKS.elim), firstSigNodes = 5, useInfo = "def")
+# #p values elim
+# score_elim <-  score(resultKS.elim)[score(resultKS.elim) <0.05]
+# allGO <- genesInTerm(GOdata)
+# x_all <- allGO[names(score_elim)]
 
-tab <- GenTable(GOdata, raw.p.value = resultKS.elim, topNodes = length(resultKS.elim@score), numChar = 180)
-tab$p_adj <- p.adjust(tab$raw.p.value,method = "fdr")
-write.table(tab[,c(1,6)][which(tab$raw.p.value<0.05),],paste0(dir,"/MF/TopGO_2_filters/","tab_go_bp.tsv"),na = "",sep="\t",row.names = F,quote = F)
-write.table(tab,paste0(dir,"/MF/TopGO_2_filters/","tab_go_bp_all.tsv"),na = "",sep="\t",row.names = F,quote = F)
+######
+#gprofiler
 
-
-  # tab$FDR <- p.adjust(tab$raw.p.value,method = "fdr")
-# par(cex = 0.3)
-# showSigOfNodes(GOdata, score(resultKS.elim), firstSigNodes = 5, useInfo = "def")
-#p values elim
-score_elim <-  score(resultKS.elim)[score(resultKS.elim) <0.05]
-allGO <- genesInTerm(GOdata)
-x_all <- allGO[names(score_elim)]
+x_all <- list()
+for(i in 1:nrow(x_s$result)){
+x_all[[i]] <- unlist(strsplit(x_s$result$intersection[[i]],","))
+}
+names(x_all) <- x_s$result$term_id
 #https://ucdavis-bioinformatics-training.github.io/2019_August_UCD_mRNAseq_Workshop/differential_expression/enrichment
 
 ############################################################################################
@@ -256,7 +283,7 @@ TERM_GO_list <- rbind(TERM_GO_list,no_found_df_sat)
 #loading revigo reults
 
 
-revigo_data <- data.table::fread(paste0(dir,"/MF/TopGO_2_filters/","revigo.csv"))
+revigo_data <- data.table::fread(paste0(dir,"/MF/TopGO_2_filters/","revigo.tsv"))#csv"))
 revigo_data$final_group <- NA
 
 
@@ -269,6 +296,10 @@ for(i in 1:nrow(revigo_data)){
 
 };rm(i)
 
+write.table(as.data.frame(revigo_data),paste0(dir,"/MF/TopGO_2_filters/","revigo_data_final.tsv"),na = "",sep="\t",row.names = F,quote = F)
+
+
+
 #assign final groups
 TERM_GO_list$TERM_FILTERED <- NA
 
@@ -280,6 +311,7 @@ for(i in 1:length(revigo_data$Name)){
 TERM_GO_list$TERM_FILTERED[which( TERM_GO_list$TERM=="UNKNOWN")] <- "UNKNOWN"
 length(unique(TERM_GO_list$genes))
 
+unique(TERM_GO_list$TERM_FILTERED)
 TERM_GO_list <- TERM_GO_list[which(TERM_GO_list$TERM_FILTERED !="biological_process"),]
 length(unique(TERM_GO_list$genes))
 #https://www.bioconductor.org/packages/release/bioc/vignettes/rrvgo/inst/doc/rrvgo.html
@@ -309,6 +341,7 @@ unique(revigo_data$final_group)
 write.csv(TERM_GO_list,paste0(dir,"/MF/TopGO_2_filters/","BP_Groups_elim2.csv"),na = "",row.names = F)
 
 unique_MF <- unique(TERM_GO_list$TERM_FILTERED)
+
 # <- unique_MF[-5]#[-3]
 
 x_MF_list <- list()
@@ -323,49 +356,76 @@ length(unique(unlist(x_MF_list)))
 ################################################################################################################
 ############################################################################################
 #get information from ensembl after second filter round
-go_ids= biomaRt::getBM(attributes=c('go_id', 'ensembl_gene_id', 'namespace_1003'),
-                       filters='ensembl_gene_id',
-                       values=unique(dat3_Sat$ci_gen),#unlist(dat3_Sat$ci_gen),
-                       mart=ensembl_os)
-
-go_ids <- go_ids[which(go_ids$namespace_1003=="molecular_function"),]
-go_ids <- go_ids[,c(1,2)]
-
-gene_2_GO=unstack(go_ids[,c(1,2)])
-#all GO terms lists to query
-xx <- as.list(GOTERM)
-
+# go_ids= biomaRt::getBM(attributes=c('go_id', 'ensembl_gene_id', 'namespace_1003'),
+#                        filters='ensembl_gene_id',
+#                        values=unique(dat3_Sat$ci_gen),#unlist(dat3_Sat$ci_gen),
+#                        mart=ensembl_os)
+#
+# go_ids <- go_ids[which(go_ids$namespace_1003=="molecular_function"),]
+# go_ids <- go_ids[,c(1,2)]
+#
+# gene_2_GO=unstack(go_ids[,c(1,2)])
+# #all GO terms lists to query
+# xx <- as.list(GOTERM)
+#
 ############################################################################################
 #preparing data for elim algorithm OSJ
 
+#i <- 1
 x_i_go <- lapply(1:length(x_MF_list),function(i){
-  candidate <- unique(unlist(x_MF_list[[i]])) #unlist(x_MF_list[[i]])
-  geneList=factor(as.integer(unique(dat3_Sat$ci_gen) %in% candidate),levels = c(0,1))
-  #geneList=factor(as.integer(unlist(dat3_Sat$ci_gen) %in% candidate),levels = c(0,1))
-  names(geneList)= unique(dat3_Sat$ci_gen)#unlist(dat3_Sat$ci_gen)
+message(i)
+  x_s_i <-  gprofiler2::gost(query = unique(unlist(x_MF_list[[i]])),
+                           organism = "osativa", ordered_query = FALSE,
+                           multi_query = FALSE, significant = TRUE, exclude_iea = FALSE,
+                           measure_underrepresentation = FALSE, evcodes = T,
+                           user_threshold = 0.05, correction_method = "g_SCS",
+                           #domain_scope = "annotated",
+                           custom_bg = unique(dat3_Sat$ci_gen),#unique(dat3_Sat$ci_gen),
+                           numeric_ns = "", sources = "GO:MF", as_short_link = FALSE)
 
 
-  #Create topGOdata object
-  GOdata_i=new('topGOdata', ontology='MF', allGenes = geneList, annot = topGO::annFUN.gene2GO,
-               gene2GO = gene_2_GO)
+  # candidate <- unique(unlist(x_MF_list[[i]])) #unlist(x_MF_list[[i]])
+  # geneList=factor(as.integer(unique(dat3_Sat$ci_gen) %in% candidate),levels = c(0,1))
+  # #geneList=factor(as.integer(unlist(dat3_Sat$ci_gen) %in% candidate),levels = c(0,1))
+  # names(geneList)= unique(dat3_Sat$ci_gen)#unlist(dat3_Sat$ci_gen)
+  #
+  #
+  # #Create topGOdata object
+  # GOdata_i=new('topGOdata', ontology='MF', allGenes = geneList, annot = topGO::annFUN.gene2GO,
+  #              gene2GO = gene_2_GO)
+  #
+  # resultKS.elim_i <- runTest(GOdata_i, algorithm = "elim", statistic = "ks")
+  #
+  # #p values elim
+  #
+  # score_elim_i <-  score(resultKS.elim_i)[score(resultKS.elim_i) <0.05]
+  # allGO_i <- genesInTerm(GOdata_i)
+  # x_all_i <- allGO_i[names(score_elim_i)]
 
-  resultKS.elim_i <- runTest(GOdata_i, algorithm = "elim", statistic = "ks")
+  # Term_i <- as.data.frame(do.call(rbind,lapply(1:length(x_all_i),function(j){
+  #   Term_i <- Term(xx_i <- xx[names(xx) %in% names(x_all_i)[j]][[1]])
+  #   Term_i <- data.frame(term_name=Term_i,genes= paste(unlist(x_all_i[[j]]),collapse = ","))
 
-  #p values elim
-  score_elim_i <-  score(resultKS.elim_i)[score(resultKS.elim_i) <0.05]
-  allGO_i <- genesInTerm(GOdata_i)
-  x_all_i <- allGO_i[names(score_elim_i)]
+      #return(Term_i)
+#  })))
 
-  Term_i <- as.data.frame(do.call(rbind,lapply(1:length(x_all_i),function(j){
-    Term_i <- Term(xx_i <- xx[names(xx) %in% names(x_all_i)[j]][[1]])
-    Term_i <- data.frame(term_name=Term_i,genes= paste(unlist(x_all_i[[j]]),collapse = ","))
-    return(Term_i)
-  })))
+  if(!is.null(x_s_i)){
+    Term_i <- data.frame(term=x_s_i$result$term_name,genes=x_s_i$result$intersection)
 
-
-  x_i_go  <- data.frame(feature=names(x_MF_list)[[i]],term_name=Term_i$term_name,term_id = names(x_all_i), genes=Term_i$genes)
+    x_i_go  <- data.frame(feature=names(x_MF_list)[[i]],term_name=Term_i$term,term_id =x_s_i$result$term_id,
+                          #names(x_all_i),
+                          genes=Term_i$genes)
+  } else {
+    x_i_go  <- data.frame(feature=names(x_MF_list)[[i]],term_name=NA,term_id =NA,
+                        #names(x_all_i),
+                        genes=NA)
+  }
   return(x_i_go)
 })
+
+# length(unique(unlist(x_MF_list[[28]])))
+# length(unique(unlist(x_MF_list[1:27])))
+
 x_i_go <- do.call(rbind,x_i_go)
 x_i_go2 <- x_i_go[which(x_i_go$term_name!="molecular_function"),]
 write.csv(as.data.frame(x_i_go2),paste0(dir,"/MF/TopGO_2_filters/","GOST_OSJ.csv"),na = "",row.names = F)
@@ -376,6 +436,7 @@ length(unique(unlist(strsplit(x_i_go2$genes,",")))) #number of total genes
 #length(unique(unlist(strsplit(x_i_go_arath2$genes,",")))) #number of total genes
 #############################################################
 #graph one species
+#load_all("D:/REPO_GITHUB/GOCompare")
 x <- graphGOspecies(df=x_i_go2,#x_s$result,
                                GOterm_field="term_name",
                                option = "GO",
@@ -394,7 +455,7 @@ x2 <- graphGOspecies(df=x_i_go2,#x_s$result,
 
 
 #Get nodes with values greater than 95%
-perc <- x$nodes[which(x$nodes$GO_WEIGHT > quantile(x$nodes$GO_WEIGHT,probs = 0.9)),]
+perc <- x$nodes[which(x$nodes$GO_WEIGHT >= quantile(x$nodes$GO_WEIGHT,probs = 0.9)),]
 write.csv(perc,paste0(dir,"/MF/TopGO_2_filters/","PERC_OSJ.csv"),na = "",row.names = F)
 # visualize nodes filtered
 #View(perc)
@@ -437,47 +498,67 @@ for(j in 1:length(unique_MF_ara)){
 names(x_MF_list_ara) <- unique_MF_ara
 ############################################################################################
 #get information from ensembl after second filter round
-go_ids= biomaRt::getBM(attributes=c('go_id', 'ensembl_gene_id', 'namespace_1003'),
-                       filters='ensembl_gene_id',
-                       values=unique(x_orth_sat2$ortholog_ensg),#unlist(x_orth_sat2$ortholog_ensg),
-                       mart=ensembl_at)
-
-go_ids <- go_ids[which(go_ids$namespace_1003=="molecular_function"),]
-go_ids <- go_ids[,c(1,2)]
-
-gene_2_GO=unstack(go_ids[,c(1,2)])
-#all GO terms lists to query
-xx <- as.list(GOTERM)
+# go_ids= biomaRt::getBM(attributes=c('go_id', 'ensembl_gene_id', 'namespace_1003'),
+#                        filters='ensembl_gene_id',
+#                        values=unique(x_orth_sat2$ortholog_ensg),#unlist(x_orth_sat2$ortholog_ensg),
+#                        mart=ensembl_at)
+#
+# go_ids <- go_ids[which(go_ids$namespace_1003=="molecular_function"),]
+# go_ids <- go_ids[,c(1,2)]
+#
+# gene_2_GO=unstack(go_ids[,c(1,2)])
+# #all GO terms lists to query
+# xx <- as.list(GOTERM)
 
 ###########################################################################
 #local enrichment (topGO) ARATH
 
 x_i_go_arath <- lapply(1:length(x_MF_list_ara),function(i){
-  candidate <- unique(x_MF_list_ara[[i]])#unique(unlist(x_MF_list_ara[[i]]))
-  geneList=factor(as.integer(unique(x_orth_sat2$ortholog_ensg) %in% candidate),levels = c(0,1))
-  #geneList=factor(as.integer(unlist(x_orth_sat2$ortholog_ensg) %in% candidate),levels = c(0,1))
-  names(geneList)= unique(x_orth_sat2$ortholog_ensg)#unlist(x_orth_sat2$ortholog_ensg)
+  # candidate <- unique(x_MF_list_ara[[i]])#unique(unlist(x_MF_list_ara[[i]]))
+  # geneList=factor(as.integer(unique(x_orth_sat2$ortholog_ensg) %in% candidate),levels = c(0,1))
+  # #geneList=factor(as.integer(unlist(x_orth_sat2$ortholog_ensg) %in% candidate),levels = c(0,1))
+  # names(geneList)= unique(x_orth_sat2$ortholog_ensg)#unlist(x_orth_sat2$ortholog_ensg)
+  #
+  #
+  # #Create topGOdata object
+  # GOdata_i=new('topGOdata', ontology='MF', allGenes = geneList, annot = topGO::annFUN.gene2GO,
+  #              gene2GO = gene_2_GO)
+  #
+  # resultKS.elim_i <- runTest(GOdata_i, algorithm = "elim", statistic = "ks")
+  #
+  # #p values elim
+  # score_elim_i <-  score(resultKS.elim_i)[score(resultKS.elim_i) <0.05]
+  # allGO_i <- genesInTerm(GOdata_i)
+  # x_all_i <- allGO_i[names(score_elim_i)]
+  #
+  # Term_i <- as.data.frame(do.call(rbind,lapply(1:length(x_all_i),function(j){
+  #   Term_i <- Term(xx_i <- xx[names(xx) %in% names(x_all_i)[j]][[1]])
+  #   Term_i <- data.frame(term_name=Term_i,genes= paste(unlist(x_all_i[[j]]),collapse = ","))
+  #   return(Term_i)
+  # })))
+  message(i)
+  x_s_i <-  gprofiler2::gost(query = unique(unlist(x_MF_list_ara[[i]])),
+                             organism = "athaliana", ordered_query = FALSE,
+                             multi_query = FALSE, significant = TRUE, exclude_iea = FALSE,
+                             measure_underrepresentation = FALSE, evcodes = T,
+                             user_threshold = 0.05, correction_method = "g_SCS",
+                             #domain_scope = "annotated",
+                             custom_bg = unique(x_orth_sat2$ortholog_ensg),#unique(dat3_Sat$ci_gen),
+                             numeric_ns = "", sources = "GO:MF", as_short_link = FALSE)
 
+  if(!is.null(x_s_i)){
+    Term_i <- data.frame(term=x_s_i$result$term_name,genes=x_s_i$result$intersection)
 
-  #Create topGOdata object
-  GOdata_i=new('topGOdata', ontology='MF', allGenes = geneList, annot = topGO::annFUN.gene2GO,
-               gene2GO = gene_2_GO)
+    x_i_go_arath  <- data.frame(feature=names(x_MF_list)[[i]],term_name=Term_i$term,term_id =x_s_i$result$term_id,
+                          #names(x_all_i),
+                          genes=Term_i$genes)
+  } else {
+    x_i_go_arath  <- data.frame(feature=names(x_MF_list)[[i]],term_name=NA,term_id =NA,
+                          #names(x_all_i),
+                          genes=NA)
+  }
 
-  resultKS.elim_i <- runTest(GOdata_i, algorithm = "elim", statistic = "ks")
-
-  #p values elim
-  score_elim_i <-  score(resultKS.elim_i)[score(resultKS.elim_i) <0.05]
-  allGO_i <- genesInTerm(GOdata_i)
-  x_all_i <- allGO_i[names(score_elim_i)]
-
-  Term_i <- as.data.frame(do.call(rbind,lapply(1:length(x_all_i),function(j){
-    Term_i <- Term(xx_i <- xx[names(xx) %in% names(x_all_i)[j]][[1]])
-    Term_i <- data.frame(term_name=Term_i,genes= paste(unlist(x_all_i[[j]]),collapse = ","))
-    return(Term_i)
-  })))
-
-
-  x_i_go_arath  <- data.frame(feature=names(x_MF_list)[[i]],term_name=Term_i$term_name,term_id = names(x_all_i), genes=Term_i$genes)
+  #x_i_go_arath  <- data.frame(feature=names(x_MF_list)[[i]],term_name=Term_i$term_name,term_id = names(x_all_i), genes=Term_i$genes)
   return(x_i_go_arath)
 })
 x_i_go_arath <- do.call(rbind,x_i_go_arath)
@@ -583,8 +664,8 @@ for(i in 1:length(unique_MF_to_genes)){
   # };rm(j)
   # #
   x_counts_cat[[i]] <- data.frame(CAT=unique_MF_to_genes[[i]],
-             OSJ=length(unlist(x_MF_list[[i]])),
-             ARATH=length(unlist(x_MF_list_ara[[i]]))
+             OSJ=length(unique(unlist(x_MF_list[[i]]))),
+             ARATH=length(unique(unlist(x_MF_list_ara[[i]])))
              )
 };rm(i)
 x_counts_cat <- do.call(rbind,x_counts_cat)
@@ -655,7 +736,7 @@ x2_area <- graphGOspecies(df=x_i_go_arath2,#x_s_ara$result,
 
 #Get nodes with values greater than 95%
 #perc_Ara <- x_ara$nodes[which(x_ara$nodes$GO_WEIGHT > quantile(x_ara$nodes$GO_WEIGHT,probs = 0.9)),]
-perc_Ara <- x_ara$nodes[which(x_ara$nodes$GO_WEIGHT > quantile(x_ara$nodes$GO_WEIGHT,probs = 0.9)),]
+perc_Ara <- x_ara$nodes[which(x_ara$nodes$GO_WEIGHT >= quantile(x_ara$nodes$GO_WEIGHT,probs = 0.9)),]
 write.csv(perc_Ara,paste0(dir,"/MF/TopGO_2_filters/OSJ_ARATH/","PERC_ARATH.csv"),na = "",row.names = F)
 # visualize nodes filtered
 
@@ -670,17 +751,23 @@ x_COMP <- compareGOspecies(df1 = x_i_go2,#x_s$result,
 plot(hclust(x_COMP$distance,method = "ward.D"))
 x_COMP$graphics
 
+#nrow(x_COMP$shared_GO_list)
+stats_count_un_MF_Status <- data.frame(
+  SP1 = nrow(x_COMP$unique_GO_list[which(x_COMP$unique_GO_list$species=="O. sativa (japonica)"),]),
+  SP2 = nrow(x_COMP$unique_GO_list[which(x_COMP$unique_GO_list$species=="A. thaliana"),]),
+  SHARED = nrow(x_COMP$shared_GO_list[which(x_COMP$shared_GO_list$species=="Shared"),]))
+write.csv(stats_count_un_MF_Status,paste0(dir,"/MF/TopGO_2_filters/UNIQUE_SHARED_BALANCE.csv"),na = "",row.names = F)
+
+#length(x_COMP$unique_GO_list$species=="A. thaliana")
+
 library(immunarch)
 xx_inm <- immunarch::immunr_hclust(as.matrix(x_COMP$distance), .dist = T,.method = "ward.D")
-res <- hcut(x_COMP$distance, k = 16, stand = F,hc_method = "ward.D",isdiss=T )
-res_results <- data.frame(label=names(res$cluster),cluster=res$cluster)
-write.csv(res_results,paste0(dir,"/MF/TopGO_2_filters/","cluster_Results.csv"),na = "",row.names = F)
-
+res <- hcut(x_COMP$distance, k = 16, stand = F,hc_method = "ward.D",isdiss=T ) #k=5
 
 png(
   paste0(dir,"/MF/TopGO_2_filters/JACCARD_CLUSTER.png"),
   width     = 45,
-  height    = 35, #29
+  height    = 29,
   units     = "in",
   res       = 400,
   pointsize = 5
@@ -691,7 +778,7 @@ fviz_dend(res, rect = TRUE,cex = 2.5,
           type="rectangle",
           horiz=T,
           lwd=2.5,
-repel = TRUE,color_labels_by_k = F,labels_track_height=5,rect_border = T,rect_fill=F,main ="",rect_lty = 3)
+repel = TRUE,color_labels_by_k = F,labels_track_height=5,rect_border = F,main ="")
 dev.off()
 
 
@@ -716,7 +803,7 @@ x_graph_go <- graph_two_GOspecies(x=x_COMP,
                                    option= "GO",
                                    outdir = paste0(dir,"/MF/TopGO_2_filters"))
 
-perc_twosp <- x_graph_go$nodes[which(x_graph_go$nodes$GO_WEIGHT > quantile(x_graph_go$nodes$GO_WEIGHT,probs = 0.9)),]
+perc_twosp <- x_graph_go$nodes[which(x_graph_go$nodes$GO_WEIGHT >= quantile(x_graph_go$nodes$GO_WEIGHT,probs = 0.9)),]
 write.csv(perc_twosp,paste0(dir,"/MF/TopGO_2_filters/","PERC_two_spp.csv"),na = "",row.names = F)
 ############################################################################################
 #get shared term name among percentile 90th
